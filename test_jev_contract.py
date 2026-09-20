@@ -7,11 +7,14 @@ noul scoring. Run it with no API key and no internet.
 from __future__ import annotations
 
 import json
+import os
 import threading
+from types import SimpleNamespace
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from agent import shortlist
-from jev import NONE_KEY, Jev, JevError
+import jev as jev_module
+from jev import NONE_KEY, Jev, JevError, load_api_key
 from zalo import Conversation
 
 RECEIVED: list[dict] = []
@@ -110,6 +113,22 @@ def main() -> int:
         ok &= check("refuses an oversized request", False)
     except JevError as exc:
         ok &= check("refuses an oversized request", "budget" in str(exc))
+
+    print("keychain identity")
+    real_run, real_env = jev_module.subprocess.run, os.environ.pop("TYPESAFE_API_KEY", None)
+    jev_module.subprocess.run = lambda *a, **k: SimpleNamespace(stdout="")
+    try:
+        load_api_key()
+        ok &= check("reports a missing key", False)
+    except JevError as exc:
+        ok &= check("error names this project's Keychain service",
+                    "com.toanhblab.zalo-agent" in str(exc))
+        ok &= check("error names this project's Keychain account",
+                    "typesafe-api-key" in str(exc))
+    finally:
+        jev_module.subprocess.run = real_run
+        if real_env is not None:
+            os.environ["TYPESAFE_API_KEY"] = real_env
 
     server.shutdown()
     print("\nALL PASS" if ok else "\nSOME CHECKS FAILED")

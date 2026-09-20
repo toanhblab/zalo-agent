@@ -27,8 +27,8 @@ class JevError(RuntimeError):
     pass
 
 
-def load_api_key(service: str = "com.thirdhand.openrouter",
-                 account: str = "api-key") -> str:
+def load_api_key(service: str = "com.toanhblab.zalo-agent",
+                 account: str = "typesafe-api-key") -> str:
     """Read the key from the environment, else from the login Keychain.
 
     The value is returned to the caller in memory only. Nothing here writes it

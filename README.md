@@ -64,19 +64,24 @@ nhóm khi tên mơ hồ mới gọi tới model.
 `jev.py` tự đọc khoá bên trong tiến trình, theo thứ tự:
 
 1. Biến môi trường `TYPESAFE_API_KEY`
-2. macOS Keychain, service `com.thirdhand.openrouter`, account `api-key`
+2. macOS Keychain, service `com.toanhblab.zalo-agent`, account `typesafe-api-key`
 
 Khoá không bao giờ được ghi ra log hay in ra màn hình. Nếu không có khoá, công
 cụ vẫn chạy và tự lùi về so khớp chuỗi cục bộ.
 
-Mục Keychain do Third Hand.app tạo chỉ cho phép chính ứng dụng đó đọc. Muốn
-dùng lại từ đây, cấp quyền một lần:
+Nạp khoá vào Keychain cho dự án này:
 
 ```sh
-security find-generic-password -s com.thirdhand.openrouter -a api-key -w
+security add-generic-password -s com.toanhblab.zalo-agent -a typesafe-api-key -w '<KHOÁ>' -U
 ```
 
-Bấm **Always Allow** trong hộp thoại. Hoặc đơn giản hơn là đặt biến môi trường.
+Kiểm lại mà không lộ khoá ra màn hình (chỉ in số ký tự):
+
+```sh
+security find-generic-password -s com.toanhblab.zalo-agent -a typesafe-api-key -w | wc -c
+```
+
+Biến môi trường `TYPESAFE_API_KEY` vẫn được ưu tiên hơn mục Keychain.
 
 ## Kiểm thử
 
