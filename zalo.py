@@ -42,10 +42,18 @@ SEL = {
 
 
 def fold(text: str) -> str:
-    """Casefold and strip Vietnamese diacritics for forgiving matching."""
+    """Casefold, strip Vietnamese diacritics, and normalise whitespace.
+
+    Zalo renders conversation titles with non-breaking spaces, so a query typed
+    with ordinary spaces never matches unless every kind of space collapses to
+    a single plain one.
+    """
     decomposed = unicodedata.normalize("NFD", text or "")
     stripped = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
-    return stripped.replace("đ", "d").replace("Đ", "D").casefold().strip()
+    spaced = "".join(" " if unicodedata.category(c) == "Zs" or c in "\t\r\n" else c
+                     for c in stripped)
+    collapsed = " ".join(spaced.split())
+    return collapsed.replace("đ", "d").replace("Đ", "D").casefold()
 
 
 @dataclass
