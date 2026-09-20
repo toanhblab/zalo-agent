@@ -83,7 +83,11 @@ Bấm **Always Allow** trong hộp thoại. Hoặc đơn giản hơn là đặt 
 ```sh
 .venv/bin/python test_jev_contract.py   # không cần mạng, không cần khoá
 .venv/bin/python test_e2e.py            # cần Zalo đang mở kèm cổng 9222
+.venv/bin/python test_ask.py            # chấm điểm tin nhắn thật
 ```
+
+Hai test đầu cuối dựng một Jev giả lập cục bộ, nên chúng chạy được mà không
+tiêu tốn lượt gọi API, trong khi dữ liệu Zalo vẫn là dữ liệu thật.
 
 `test_jev_contract.py` dựng một máy chủ giả lập nói đúng hợp đồng của TypeSafe
 để kiểm tra hình dạng request, ngân sách byte, chặn lựa chọn ngoài schema,
