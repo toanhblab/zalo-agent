@@ -59,6 +59,68 @@ curl -s http://127.0.0.1:9222/json/version
 `groups`, `open` và `find` chạy hoàn toàn tất định. Chỉ `ask` và phần chọn
 nhóm khi tên mơ hồ mới gọi tới model.
 
+### `latest` — tin mới nhất của một người
+
+Trả về **một** tin: tin mới nhất của người gửi đó, kèm mọi tệp người đó gửi
+trong cửa sổ `--attach-window` phút ngay sau tin. Đây là bề mặt dành cho ứng
+dụng khác gọi, nên nó **không bao giờ gọi Jev** — kể cả khi tên nhóm mơ hồ.
+
+```sh
+.venv/bin/python agent.py latest "lớp cambridge" --from "Thu Huyền" \
+    --match "ngày học thứ" --json
+```
+
+| cờ | mặc định | ý nghĩa |
+|---|---|---|
+| `--from` | (bắt buộc) | tên hiển thị của người gửi; so khớp bỏ dấu, bỏ hoa thường |
+| `--match` | — | chỉ xét tin chứa cụm này |
+| `--attach-window` | `90` | gom tệp của cùng người gửi trong bao nhiêu phút sau tin |
+| `--days` | `30` | cuộn ngược tối đa bấy nhiêu ngày |
+| `--json` | tắt | in JSON thay vì bản đọc cho người |
+
+Thứ tự "mới nhất" lấy từ `timestamp_ms` trong id phần tử, **không** lấy từ
+giờ hiển thị: Zalo chỉ in giờ trên bong bóng cuối mỗi cụm tin.
+
+### `attachments` — kéo tệp của một người về máy
+
+```sh
+.venv/bin/python agent.py attachments "lớp cambridge" --from "Thu Huyền" \
+    --since 2026-09-01 --out ~/zalo-tep
+```
+
+Lệnh này chỉ bấm đúng nút **"Lưu về máy"** có sẵn của Zalo rồi chép tệp ra khỏi
+kho cục bộ của chính ứng dụng; nó không dựng URL, không gửi gì. Tệp xếp theo
+`<thư mục>/<YYYY-MM-DD>/`, kèm `index.json` ghi tệp nào thuộc tin nào.
+
+Khoá để ghép tin ↔ tệp là nửa sau dấu `@` của `data-qid`, đúng bằng tên tệp
+trong kho của Zalo:
+
+```
+~/Library/Application Support/ZaloData/media/<ownerId>/ZaloDownloads/
+    resource/<groupId>/file/<sentMs>_<cliMsgId>_<groupId>
+    resource/<groupId>/video/<sentMs>_<cliMsgId>_<groupId>
+    resource/<groupId>/picture/<sentMs>_<cliMsgId>_<groupId>_<hash>.jxl
+```
+
+## Ràng buộc vận hành
+
+Ba thứ dưới đây quyết định việc chạy tự động có ra kết quả hay không.
+
+- **Zalo phải đang chạy, đã đăng nhập, kèm cổng 9222.** Không có tiến trình
+  Zalo thì không có gì để đọc; công cụ này đọc giao diện chứ không gọi API.
+- **Tệp hết hạn sau khoảng hai tuần.** Quá hạn, Zalo hiện "File không tồn tại"
+  và bỏ luôn nút tải — không cách nào lấy lại từ máy này. Muốn giữ tệp thì phải
+  chạy `attachments` đều đặn, không thể thu thập hồi tố.
+- **Phải mở lại nhóm mỗi lần chạy.** Cổng gỡ lỗi điều khiển đúng cái Zalo mà
+  người dùng đang dùng, nên khung chat có thể đổi sang hội thoại khác bất cứ
+  lúc nào. Mọi lệnh đều gọi `ensure_conversation` để đối chiếu
+  `#header .header-title` và mở lại nếu lệch; nếu bỏ bước này, công cụ sẽ đọc
+  nhầm hội thoại mà không báo lỗi.
+
+Ngoài ra, lịch sử hội thoại **không có sẵn**: Zalo chỉ nạp tin cũ hơn khi khung
+chat bị ghim ở `scrollTop === 0`. `read_messages(deep=True)` làm việc đó, nên
+một lần quét sâu tốn vài chục giây; dùng `--days` để giới hạn.
+
 ## Khoá API
 
 `jev.py` tự đọc khoá bên trong tiến trình, theo thứ tự:
@@ -86,9 +148,10 @@ Biến môi trường `TYPESAFE_API_KEY` vẫn được ưu tiên hơn mục Key
 ## Kiểm thử
 
 ```sh
-.venv/bin/python test_jev_contract.py   # không cần mạng, không cần khoá
-.venv/bin/python test_e2e.py            # cần Zalo đang mở kèm cổng 9222
-.venv/bin/python test_ask.py            # chấm điểm tin nhắn thật
+.venv/bin/python test_jev_contract.py     # không cần mạng, không cần khoá
+.venv/bin/python test_latest_contract.py  # thuần Python, không cần Zalo
+.venv/bin/python test_e2e.py              # cần Zalo đang mở kèm cổng 9222
+.venv/bin/python test_ask.py              # chấm điểm tin nhắn thật
 ```
 
 Hai test đầu cuối dựng một Jev giả lập cục bộ, nên chúng chạy được mà không
@@ -110,15 +173,29 @@ diện thì chỉ phải sửa một chỗ.
 | Tên hội thoại | `.conv-item-title__name .truncate` |
 | Tiêu đề khung chat | `#header .header-title` |
 | Tin nhắn | `[id^="bb_msg_id_"]` |
-| Nội dung tin | `span.text` |
+| Nội dung tin | `[data-component="message-text-content"]` |
 | Người gửi | `.message-sender-name-content` |
+| Khoá tệp của tin | thuộc tính `data-qid`, phần sau dấu `@` |
+| Bong bóng tệp | `.file-message-v2` |
+| Nút lưu tệp | `a.file-message__actions.download` |
+| Ảnh / video | `[data-component="photo"]` |
 
 Hai danh sách của Zalo đều ảo hoá bằng react-virtualized, nên phần tử truy vấn
 được không phải phần tử cuộn. Hàm `__zScroller` xử lý việc này: khung chat cuộn
 ở một phần tử con, còn danh sách hội thoại cuộn ở một phần tử tổ tiên.
 
 Zalo chỉ in tên người gửi một lần cho mỗi chuỗi tin liên tiếp của cùng một
-người, nên `zalo.py` tự truyền tên đó xuống các tin kế tiếp.
+người, nên `zalo.py` tự truyền tên đó xuống các tin kế tiếp. Bỏ bước này thì
+phần lớn hội thoại bị gán sai người gửi, chứ không phải mất vài cái tên.
+
+Một tin có **hai dạng id**: `bb_msg_id_<ms>` và
+`bb_msg_id_<ms>_<cliMsgId>_<groupId>`, và cùng một tin có thể đổi qua lại giữa
+hai dạng giữa các lần render. Chỉ trường đầu là đồng hồ, nên `timestamp_ms` cắt
+tại dấu `_` đầu tiên, và khi cần tìm lại bong bóng theo id thì phải tra bằng
+tiền tố `[id^="bb_msg_id_<ms>"]`.
+
+Giờ gửi (`.card-send-time__sendTime`) chỉ xuất hiện trên bong bóng cuối mỗi cụm
+— khoảng 30% số tin — nên đừng dùng nó để sắp xếp; dùng `timestamp_ms`.
 
 ## Cần biết trước khi dùng
 
